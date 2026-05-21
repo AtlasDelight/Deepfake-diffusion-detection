@@ -87,3 +87,173 @@ If the hf command is not available, use:
 huggingface-cli login
 ```
 A Hugging Face access token with read permissions is required.
+
+
+## Compile LaTeX reports and slides locally with VS Code
+
+This project contains LaTeX reports and Beamer slides inside the `reports/` folder.
+
+Instead of using Overleaf, the `.tex` files can be compiled locally with VS Code.
+
+### 1. Install LaTeX tools
+
+On Debian / Ubuntu / WSL, install a LaTeX distribution and `latexmk`:
+
+```bash
+sudo apt update
+sudo apt install texlive-full latexmk
+```
+
+If `texlive-full` is too large, a lighter installation can be used:
+
+```bash
+sudo apt install texlive-latex-extra texlive-fonts-recommended texlive-fonts-extra texlive-bibtex-extra biber latexmk
+```
+
+### 2. Install the VS Code extension
+
+In VS Code, install the extension:
+
+```text
+LaTeX Workshop
+```
+
+This extension allows VS Code to compile `.tex` files and preview the generated PDF.
+
+### 3. Open the project in VS Code
+
+From the project root:
+
+```bash
+code .
+```
+
+Then open the LaTeX file you want to compile, for example:
+
+```text
+reports/SoTA/Detection_deepfakes_slides/main.tex
+```
+
+or:
+
+```text
+reports/SoTA/Detrction_deepfakes/main.tex
+```
+
+### 4. Compile from VS Code
+
+With `main.tex` open in VS Code, use:
+
+```text
+Ctrl + Alt + B
+```
+
+or open the Command Palette:
+
+```text
+Ctrl + Shift + P
+```
+
+then search for:
+
+```text
+LaTeX Workshop: Build LaTeX project
+```
+
+The generated PDF will appear in the same folder as `main.tex`.
+
+### 5. Compile from the terminal
+
+You can also compile manually from the terminal.
+
+Example for the Beamer slides:
+
+```bash
+cd reports/SoTA/Detection_deepfakes_slides
+latexmk -pdf -interaction=nonstopmode -synctex=1 main.tex
+```
+
+Example for the written report:
+
+```bash
+cd reports/SoTA/Detrction_deepfakes
+latexmk -pdf -interaction=nonstopmode -synctex=1 main.tex
+```
+
+To clean temporary LaTeX files:
+
+```bash
+latexmk -c
+```
+
+To remove all generated files, including the PDF:
+
+```bash
+latexmk -C
+```
+
+### 6. Recommended VS Code settings
+
+Create the file:
+
+```text
+.vscode/settings.json
+```
+
+and add:
+
+```json
+{
+  "latex-workshop.latex.autoBuild.run": "onSave",
+  "latex-workshop.latex.outDir": "%DIR%",
+  "latex-workshop.view.pdf.viewer": "tab",
+  "latex-workshop.latex.recipes": [
+    {
+      "name": "latexmk",
+      "tools": ["latexmk"]
+    }
+  ],
+  "latex-workshop.latex.tools": [
+    {
+      "name": "latexmk",
+      "command": "latexmk",
+      "args": [
+        "-pdf",
+        "-interaction=nonstopmode",
+        "-synctex=1",
+        "%DOC%"
+      ]
+    }
+  ]
+}
+```
+
+With this configuration, saving a `.tex` file automatically rebuilds the PDF.
+
+### 7. Git ignore for LaTeX temporary files
+
+LaTeX generates many temporary files during compilation. These files should not be committed.
+
+Add the following lines to `.gitignore`:
+
+```gitignore
+# LaTeX temporary files
+*.aux
+*.log
+*.out
+*.toc
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.nav
+*.snm
+*.vrb
+*.lof
+*.lot
+*.bcf
+*.run.xml
+```
+
+The `.tex`, `.bib`, images, and final PDF can be committed if needed.
