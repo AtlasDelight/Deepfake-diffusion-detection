@@ -6,3 +6,4 @@ external/
 # Local environment and external repositories
 .venv/
 external/
+*:Zone.Identifier
