@@ -30,19 +30,24 @@ class T2IImageNetWrapper:
         self.scaling_factor = getattr(self.vae.config, "scaling_factor", 0.18215)
 
     @torch.no_grad()
-    def encode_image(self, x: torch.Tensor) -> torch.Tensor:
+    def encode_image(self, x: torch.Tensor, sample: bool = False) -> torch.Tensor:
         """
         Encode une image dans l'espace latent du VAE.
 
-        Entrée attendue :
-            x : tenseur [B, 3, H, W], normalisé dans [-1, 1]
-
-        Sortie :
-            z : latent VAE
+        Args:
+            x: image [B, 3, H, W], normalisée dans [-1, 1]
+            sample: si True, échantillonne dans la distribution latente.
+                    si False, utilise le mode/moyenne pour une reconstruction stable.
         """
         x = x.to(self.device)
         posterior = self.vae.encode(x).latent_dist
-        z = posterior.sample() * self.scaling_factor
+
+        if sample:
+            z = posterior.sample()
+        else:
+            z = posterior.mode()
+
+        z = z * self.scaling_factor
         return z
 
     @torch.no_grad()
@@ -80,4 +85,37 @@ class T2IImageNetWrapper:
         x = x.to(self.device)
         x_hat = self.reconstruct_image(x)
         error_map = torch.abs(x - x_hat)
+        return error_map
+    
+    @torch.no_grad()
+    def reconstruct_latent_via_vae_cycle(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Reconstruction latente par cycle VAE :
+
+            x -> z
+            z -> x_hat
+            x_hat -> z_hat
+
+        Returns:
+            z: latent original
+            z_hat: latent reconstruit après décodage/ré-encodage
+        """
+        x = x.to(self.device)
+
+        z = self.encode_image(x, sample=False)
+        x_hat = self.decode_latent(z, clamp=True)
+        z_hat = self.encode_image(x_hat, sample=False)
+
+        return z, z_hat
+
+
+    @torch.no_grad()
+    def latent_reconstruction_error_map(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Carte d'erreur latente :
+
+            M(x) = |z - z_hat|
+        """
+        z, z_hat = self.reconstruct_latent_via_vae_cycle(x)
+        error_map = torch.abs(z - z_hat)
         return error_map
