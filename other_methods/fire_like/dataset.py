@@ -30,7 +30,7 @@ def infer_label_from_folder(folder_name: str) -> int:
 
 class FIRELikeMapDataset(Dataset):
     """
-    Dataset for precomputed FIRE-like maps.
+    Dataset for precomputed FIRE-like frequency reconstruction error maps.
 
     Expected structure:
 
@@ -42,26 +42,25 @@ class FIRELikeMapDataset(Dataset):
                 img003.pt
                 img004.pt
 
-    Each .pt file can contain:
-        - a tensor [6, H, W]
-        - a dict with one of these keys:
-            "fire_map"
-            "map"
-            "feature"
-            "error_maps"
+    Each .pt file should ideally contain a tensor:
 
-    Recommended FIRE-like tensor format:
-        [ original_error_RGB ; frequency_guided_error_RGB ]
+        [3, H, W]
 
-    Shape:
-        [6, H, W]
+    corresponding to:
+
+        |F(x) - F(x_hat)|
+
+    where F is the Fourier transform and x_hat is the reconstructed image.
+
+    Each sample returns:
+        fire_map, label
     """
 
     def __init__(
         self,
         root_dir,
         image_size: int = 224,
-        in_channels: int = 6,
+        in_channels: int = 3,
         normalize: str = "minmax",
     ):
         self.root_dir = Path(root_dir)
@@ -123,6 +122,10 @@ class FIRELikeMapDataset(Dataset):
         return x
 
     def _fix_channels(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Convert the loaded map to the expected number of channels.
+        """
+
         if x.ndim == 2:
             x = x.unsqueeze(0)
 
@@ -137,21 +140,18 @@ class FIRELikeMapDataset(Dataset):
         if c == 1 and self.in_channels == 3:
             return x.repeat(3, 1, 1)
 
-        if c == 1 and self.in_channels == 6:
-            return x.repeat(6, 1, 1)
-
-        if c == 3 and self.in_channels == 6:
-            # If only one RGB error map is available, duplicate it.
-            return torch.cat([x, x], dim=0)
+        if c == 3 and self.in_channels == 1:
+            return x.mean(dim=0, keepdim=True)
 
         if c == 6 and self.in_channels == 3:
-            # If needed, reduce the pair of maps to their mean RGB-like map.
+            # If a previous FIRE-like version saved two RGB maps concatenated,
+            # reduce them to one RGB-like map by averaging both parts.
             first = x[:3]
             second = x[3:6]
             return 0.5 * (first + second)
 
         raise ValueError(
-            f"Cannot convert map with {c} channels to {self.in_channels} channels."
+            f"Cannot convert map with {c} channels to expected {self.in_channels} channels."
         )
 
     def _resize_tensor(self, x: torch.Tensor) -> torch.Tensor:
@@ -172,10 +172,12 @@ class FIRELikeMapDataset(Dataset):
                 x = x["fire_map"]
             elif "map" in x:
                 x = x["map"]
-            elif "feature" in x:
-                x = x["feature"]
-            elif "error_maps" in x:
-                x = x["error_maps"]
+            elif "frequency_error" in x:
+                x = x["frequency_error"]
+            elif "freq_error" in x:
+                x = x["freq_error"]
+            elif "error_map" in x:
+                x = x["error_map"]
             else:
                 raise ValueError(f"Cannot find FIRE tensor in dict file: {path}")
 

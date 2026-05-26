@@ -10,14 +10,19 @@ from torchvision.models import (
 
 class FIRELikeResNetClassifier(nn.Module):
     """
-    ResNet classifier for FIRE-like frequency-guided reconstruction error maps.
+    ResNet classifier for FIRE-like frequency reconstruction error maps.
 
     Input:
-        FIRE-like map [B, C, H, W]
+        FIRE-like map [B, 3, H, W]
 
-    Recommended C:
-        6 = concat(original reconstruction error RGB,
-                   frequency-guided reconstruction error RGB)
+    The expected input is:
+
+        |F(x) - F(x_hat)|
+
+    where:
+        - x is the input image
+        - x_hat is the reconstructed image
+        - F is the Fourier transform
 
     Output:
         logits [B, 2]
@@ -27,7 +32,7 @@ class FIRELikeResNetClassifier(nn.Module):
         self,
         backbone: str = "resnet18",
         pretrained: bool = False,
-        in_channels: int = 6,
+        in_channels: int = 3,
         num_classes: int = 2,
     ):
         super().__init__()
@@ -46,9 +51,9 @@ class FIRELikeResNetClassifier(nn.Module):
                 "Expected 'resnet18' or 'resnet50'."
             )
 
-        old_conv = self.model.conv1
-
         if in_channels != 3:
+            old_conv = self.model.conv1
+
             self.model.conv1 = nn.Conv2d(
                 in_channels=in_channels,
                 out_channels=old_conv.out_channels,

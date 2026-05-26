@@ -81,7 +81,7 @@ def save_checkpoint(path, epoch, model, optimizer, val_acc, args):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Train a FIRE-like classifier on frequency-guided reconstruction error maps."
+        description="Train a FIRE-like classifier on frequency reconstruction error maps."
     )
 
     parser.add_argument("--train_dir", type=str, required=True)
@@ -97,7 +97,7 @@ def main():
     parser.add_argument("--pretrained", action="store_true")
 
     parser.add_argument("--image_size", type=int, default=224)
-    parser.add_argument("--in_channels", type=int, default=6)
+    parser.add_argument("--in_channels", type=int, default=3)
     parser.add_argument(
         "--normalize",
         type=str,
